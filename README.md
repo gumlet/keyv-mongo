@@ -10,6 +10,8 @@ This adapter is written to support [Mongodb GridFS](https://docs.mongodb.com/man
 
 Uses TTL indexes to automatically remove expired documents. However, TTL is not natively supported for GridFS by MongoDB so TTL is implemented with `clearExpired()` function by this library. You use `setInterval` on `clearExpired()` function to automatically remove expired files from GridFS. You decide the interval at which you want to run it.
 
+This module also provides `clearOlderThan(seconds)` method to clear files which are older than time given in seconds. For example if you want to clear files older than 1 day, you can run `clearOlderThan(86400)`.
+
 ## Install
 
 ```shell
