@@ -1,5 +1,6 @@
 language: node_js
 node_js:
+  - '10'
   - '8'
   - '6'
   - '4'
@@ -7,6 +8,3 @@ services:
   - mongodb
 script: npm test
 after_success: npm run coverage
-notifications:
-  email:
-    on_success: never

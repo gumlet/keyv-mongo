@@ -1,70 +1,144 @@
 'use strict';
 
 const EventEmitter = require('events');
-const mongojs = require('mongojs');
-const pify = require('pify');
+const MongoClient = require('mongodb').MongoClient;
+const GridStore = require('mongodb').GridStore;
+const GridFSBucket = require('mongodb').GridFSBucket;
 
-class KeyvMongo extends EventEmitter {
-	constructor(opts) {
-		super();
-		this.ttlSupport = false;
-		opts = opts || {};
-		if (typeof opts === 'string') {
-			opts = { url: opts };
-		}
-		if (opts.uri) {
-			opts = Object.assign({ url: opts.uri }, opts);
-		}
-		this.opts = Object.assign({
-			url: 'mongodb://127.0.0.1:27017',
-			collection: 'keyv'
-		}, opts);
-		this.db = mongojs(this.opts.url);
+class KeyvMongo {
+  constructor(opts) {
+    opts = opts || {};
+    if (typeof opts === 'string') {
+      opts = {
+        url: opts
+      };
+    }
+    if (opts.uri) {
+      opts = Object.assign({
+        url: opts.uri
+      }, opts);
+    }
+    this.opts = Object.assign({
+      url: 'mongodb://127.0.0.1:27017',
+      db: "keyv-file-cache"
+    }, opts);
 
-		const collection = this.db.collection(this.opts.collection);
-		collection.createIndex({ key: 1 }, {
-			unique: true,
-			background: true
-		});
-		collection.createIndex({ expiresAt: 1 }, {
-			expireAfterSeconds: 0,
-			background: true
-		});
-		this.mongo = ['update', 'findOne', 'remove'].reduce((obj, method) => {
-			obj[method] = pify(collection[method].bind(collection));
-			return obj;
-		}, {});
+    this._connected = this.connect();
+  }
 
-		this.db.on('error', err => this.emit('error', err));
-	}
+  async connect() {
+    if (!this.db) {
+      this.client = await MongoClient.connect(this.opts.url, {
+        useNewUrlParser: true
+      });
+      this.db = this.client.db(this.opts.db);
+      this.db.collection("fs.files").createIndex({
+        "metadata.expiresAt": 1
+      });
+    }
+    return true;
+  }
 
-	get(key) {
-		return this.mongo.findOne({ key })
-			.then(doc => {
-				if (doc === null) {
-					return undefined;
-				}
-				return doc.value;
-			});
-	}
+  async get(key) {
+    await this._connected;
+    let bucket = new GridFSBucket(this.db);
+    let file = await bucket.find({
+      filename: key
+    }).next();
+    if (!file) {
+      return undefined;
+    }
 
-	set(key, value, ttl) {
-		const expiresAt = (typeof ttl === 'number') ? new Date(Date.now() + ttl) : null;
-		return this.mongo.update({ key }, { key, value, expiresAt }, { upsert: true });
-	}
+    let data = await GridStore.read(this.db, key);
+    if (file.metadata.objectType == 'string') { // data stored is string. convert it back.
+      return data.toString("utf-8")
 
-	delete(key) {
-		if (typeof key !== 'string') {
-			return Promise.resolve(false);
-		}
-		return this.mongo.remove({ key })
-			.then(obj => obj.n > 0);
-	}
+    } else if (file.metadata.objectType == 'json') { // data stored is json.. convert back
+      data = data.toString("utf-8");
+      data = JSON.parse(data);
+      if (file.metadata.bufferKey) { // json data has buffer inside it. convert to buffer.
+        data[file.metadata.bufferKey] = Buffer.from(data[file.metadata.bufferKey])
+      }
+      return data;
 
-	clear() {
-		return this.mongo.remove({ key: new RegExp(`^${this.namespace}:`) })
-			.then(() => undefined);
-	}
+    } else { // the data stored is buffer, return as it is
+      return data;
+    }
+
+  }
+
+  async set(key, value, ttl) {
+    await this._connected;
+
+    const expiresAt = (typeof ttl === 'number') ? new Date(Date.now() + ttl) : null;
+    var gridStore;
+    var bufferKey = null;
+    var objectType = null;
+    if (Buffer.isBuffer(value)) {
+      objectType = 'buffer';
+    } else if (typeof value == 'object') {
+      for (var k in value) {
+        if (Buffer.isBuffer(value[k])) {
+          bufferKey = k;
+        }
+      }
+      objectType = 'json';
+      value = JSON.stringify(value);
+    } else if (typeof value == 'string') {
+      objectType = 'string';
+    }
+
+
+    gridStore = new GridStore(this.db, key, "w", {
+      metadata: {
+        objectType: objectType,
+        bufferKey: bufferKey,
+        expiresAt: expiresAt
+      }
+    });
+    gridStore = await gridStore.open();
+    gridStore = await gridStore.write(value);
+    return gridStore.close();
+  }
+
+  async delete(key) {
+    await this._connected;
+
+    if (typeof key !== 'string') {
+      return false;
+    }
+
+
+    let bucket = new GridFSBucket(this.db);
+    let file = await bucket.find({
+      filename: key
+    }).next();
+
+    return bucket.delete(file._id);
+  }
+
+  async clearExpired() {
+    await this._connected;
+
+    let bucket = new GridFSBucket(this.db);
+    let expiredFiles = await bucket.find({
+      "metadata.expiresAt": {
+        $lte: new Date(Date.now())
+      }
+    });
+
+    expiredFiles.forEach(file => {
+      bucket.delete(file._id);
+    });
+
+    return true;
+  }
+
+  async clear() {
+    await this._connected;
+    var bucket = new GridFSBucket(this.db);
+    return bucket.drop();
+  }
 }
 
 module.exports = KeyvMongo;
