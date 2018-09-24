@@ -2,7 +2,6 @@
 
 const EventEmitter = require('events');
 const MongoClient = require('mongodb').MongoClient;
-const GridStore = require('mongodb').GridStore;
 const GridFSBucket = require('mongodb').GridFSBucket;
 
 class KeyvMongo {
@@ -32,6 +31,7 @@ class KeyvMongo {
         useNewUrlParser: true
       });
       this.db = this.client.db(this.opts.db);
+      this.bucket = new GridFSBucket(this.db);
       this.db.collection("fs.files").createIndex({
         "metadata.expiresAt": 1
       });
@@ -44,31 +44,42 @@ class KeyvMongo {
 
   async get(key) {
     await this._connected;
-    let bucket = new GridFSBucket(this.db);
-    let file = await bucket.find({
-      filename: key
-    }).next();
-    if (!file) {
-      return undefined;
-    }
+    let stream = this.bucket.openDownloadStreamByName(key);
+    return new Promise((resolve, reject) => {
+      let resp = '';
+      stream.on("data", (chunk) => {
+        resp += chunk;
+      });
 
-    let resp = await GridStore.read(this.db, key);
-    return resp.toString("utf-8");
+      stream.on('end', () => {
+        resolve(resp.toString("utf-8"));
+      });
+
+      stream.on("error", (err) => {
+        resolve();
+      });
+    });
   }
 
   async set(key, value, ttl) {
     await this._connected;
 
     const expiresAt = (typeof ttl === 'number') ? new Date(Date.now() + ttl) : null;
+    await this.delete(key);
 
-    let gridStore = new GridStore(this.db, key, "w", {
+    let stream = this.bucket.openUploadStream(key, {
       metadata: {
         expiresAt: expiresAt
       }
     });
-    gridStore = await gridStore.open();
-    gridStore = await gridStore.write(value);
-    return gridStore.close();
+
+    return new Promise((resolve, reject) => {
+      stream.end(value);
+      stream.on("finish", () => {
+        resolve(stream);
+      });
+    });
+
   }
 
   async delete(key) {
@@ -78,29 +89,26 @@ class KeyvMongo {
       return false;
     }
 
-
-    let bucket = new GridFSBucket(this.db);
-    let file = await bucket.find({
+    let file = await this.bucket.find({
       filename: key
     }).next();
     if (file) {
-      bucket.delete(file._id);
+      let resp = await this.bucket.delete(file._id);
+      return true;
     }
-    return true;
   }
 
   async clearOlderThan(seconds) {
     await this._connected;
 
-    let bucket = new GridFSBucket(this.db);
-    let oldFiles = await bucket.find({
+    let oldFiles = await this.bucket.find({
       "uploadDate": {
         $lte: new Date(Date.now() - (seconds * 1000))
       }
     });
 
     oldFiles.forEach(file => {
-      bucket.delete(file._id);
+      this.bucket.delete(file._id);
     });
 
     return true;
@@ -108,16 +116,14 @@ class KeyvMongo {
 
   async clearExpired() {
     await this._connected;
-
-    let bucket = new GridFSBucket(this.db);
-    let expiredFiles = await bucket.find({
+    let expiredFiles = await this.bucket.find({
       "metadata.expiresAt": {
         $lte: new Date(Date.now())
       }
     });
 
     expiredFiles.forEach(file => {
-      bucket.delete(file._id);
+      this.bucket.delete(file._id);
     });
 
     return true;
@@ -125,8 +131,7 @@ class KeyvMongo {
 
   async clear() {
     await this._connected;
-    var bucket = new GridFSBucket(this.db);
-    return bucket.drop();
+    return this.bucket.drop();
   }
 }
 
