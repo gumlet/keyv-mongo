@@ -2,6 +2,8 @@
 
 > MongoDB storage adapter for Keyv with GridFS support
 
+[![Build Status](https://travis-ci.org/gumlet/keyv-mongo-gridfs.svg?branch=master)](https://travis-ci.org/gumlet/keyv-mongo-gridfs)
+
 MongoDB storage adapter for [Keyv](https://github.com/lukechilds/keyv).
 
 This adapter is written to support [Mongodb GridFS](https://docs.mongodb.com/manual/core/gridfs/). It stores all values in MongoDB GridFS. Values can be either string, buffer or json serializable objects.
