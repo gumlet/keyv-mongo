@@ -1,4 +1,4 @@
-# @keyv/mongo-gridfs [<img width="100" align="right" src="https://rawgit.com/lukechilds/keyv/master/media/logo.svg" alt="keyv">](https://github.com/lukechilds/keyv)
+# keyv-mongo-gridfs [<img width="100" align="right" src="https://rawgit.com/lukechilds/keyv/master/media/logo.svg" alt="keyv">](https://github.com/lukechilds/keyv)
 
 > MongoDB storage adapter for Keyv with GridFS support
 
@@ -11,7 +11,7 @@ Uses TTL indexes to automatically remove expired documents. However, TTL is not 
 ## Install
 
 ```shell
-npm install --save keyv @keyv/mongo-gridfs
+npm install --save keyv keyv-mongo-gridfs
 ```
 
 ## Usage
