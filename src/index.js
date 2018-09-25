@@ -52,7 +52,7 @@ class KeyvMongo {
       });
 
       stream.on('end', () => {
-        resolve(resp.toString("utf-8"));
+        resolve(resp);
       });
 
       stream.on("error", (err) => {
