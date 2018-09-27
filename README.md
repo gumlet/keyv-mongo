@@ -32,7 +32,7 @@ You can specify the database name, by default `'keyv-file-cache'` is used.
 e.g:
 
 ```js
-const keyv = new Keyv('mongodb://user:pass@localhost:27017', { db: 'example-keyv-cache' });
+const keyv = new Keyv('mongodb://user:pass@localhost:27017', { db: 'example-keyv-cache', readPreference: "primary" });
 ```
 
 ## License

@@ -19,7 +19,8 @@ class KeyvMongo {
     }
     this.opts = Object.assign({
       url: 'mongodb://127.0.0.1:27017',
-      db: "keyv-file-cache"
+      db: "keyv-file-cache",
+      readPreference: "primary"
     }, opts);
 
     this._connected = this.connect();
@@ -31,7 +32,9 @@ class KeyvMongo {
         useNewUrlParser: true
       });
       this.db = this.client.db(this.opts.db);
-      this.bucket = new GridFSBucket(this.db);
+      this.bucket = new GridFSBucket(this.db, {
+        readPreference: this.opts.readPreference
+      });
       this.db.collection("fs.files").createIndex({
         "metadata.expiresAt": 1
       });
