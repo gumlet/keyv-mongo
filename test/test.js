@@ -11,6 +11,12 @@ test.serial('Stores value in GridFS', async function(t) {
   t.deepEqual(get, "value");
 });
 
+test.serial('Get only metadata', async function(t) {
+  const store = new KeyvMongo();
+  let result = await store.get("filename", true);
+  t.deepEqual(result.filename, "filename");
+});
+
 test.serial('Gets value from GridFS', async function(t) {
   const store = new KeyvMongo();
   let result = await store.get("filename");

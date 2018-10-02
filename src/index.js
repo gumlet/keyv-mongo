@@ -45,23 +45,29 @@ class KeyvMongo {
     return true;
   }
 
-  async get(key) {
+  async get(key, onlymetadata) {
     await this._connected;
-    let stream = this.bucket.openDownloadStreamByName(key);
-    return new Promise((resolve, reject) => {
-      let resp = '';
-      stream.on("data", (chunk) => {
-        resp += chunk;
-      });
+    if (onlymetadata) {
+      return await this.bucket.find({
+        filename: key
+      }).next();
+    } else {
+      let stream = this.bucket.openDownloadStreamByName(key);
+      return new Promise((resolve, reject) => {
+        let resp = '';
+        stream.on("data", (chunk) => {
+          resp += chunk;
+        });
 
-      stream.on('end', () => {
-        resolve(resp);
-      });
+        stream.on('end', () => {
+          resolve(resp);
+        });
 
-      stream.on("error", (err) => {
-        resolve();
+        stream.on("error", (err) => {
+          resolve();
+        });
       });
-    });
+    }
   }
 
   async set(key, value, ttl) {
