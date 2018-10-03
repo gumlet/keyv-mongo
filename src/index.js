@@ -39,35 +39,40 @@ class KeyvMongo {
         "metadata.expiresAt": 1
       });
       this.db.collection("fs.files").createIndex({
-        "uploadDate": 1
+        "metadata.lastAccessed": 1
       });
     }
     return true;
   }
 
-  async get(key, onlymetadata) {
+  async get(key) {
     await this._connected;
-    if (onlymetadata) {
-      return await this.bucket.find({
-        filename: key
-      }).next();
-    } else {
-      let stream = this.bucket.openDownloadStreamByName(key);
-      return new Promise((resolve, reject) => {
-        let resp = '';
-        stream.on("data", (chunk) => {
-          resp += chunk;
-        });
 
-        stream.on('end', () => {
-          resolve(resp);
-        });
+    this.db.collection("fs.files").updateOne({
+      filename: key
+    }, {
+      "$set": {
+        "metadata.lastAccessed": new Date()
+      }
+    });
 
-        stream.on("error", (err) => {
-          resolve();
-        });
+
+    let stream = this.bucket.openDownloadStreamByName(key);
+    return new Promise((resolve, reject) => {
+      let resp = '';
+      stream.on("data", (chunk) => {
+        resp += chunk;
       });
-    }
+
+      stream.on('end', () => {
+        resolve(resp);
+      });
+
+      stream.on("error", (err) => {
+        resolve();
+      });
+    });
+
   }
 
   async set(key, value, ttl) {
@@ -107,11 +112,11 @@ class KeyvMongo {
     }
   }
 
-  async clearOlderThan(seconds) {
+  async clearUnusedFor(seconds) {
     await this._connected;
 
     let oldFiles = await this.bucket.find({
-      "uploadDate": {
+      "metadata.lastAccessed": {
         $lte: new Date(Date.now() - (seconds * 1000))
       }
     });

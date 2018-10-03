@@ -11,11 +11,6 @@ test.serial('Stores value in GridFS', async function(t) {
   t.deepEqual(get, "value");
 });
 
-test.serial('Get only metadata', async function(t) {
-  const store = new KeyvMongo();
-  let result = await store.get("filename", true);
-  t.deepEqual(result.filename, "filename");
-});
 
 test.serial('Gets value from GridFS', async function(t) {
   const store = new KeyvMongo();
@@ -41,9 +36,9 @@ test.serial('Clears expired value from GridFS', async function(t) {
   t.deepEqual(cleared, true);
 });
 
-test.serial('Clears older files from GridFS', async function(t) {
+test.serial('Clears unused files from GridFS', async function(t) {
   const store = new KeyvMongo();
-  let cleared = await store.clearOlderThan(5);
+  let cleared = await store.clearUnusedFor(5);
   t.deepEqual(cleared, true);
 });
 
