@@ -83,7 +83,8 @@ class KeyvMongo {
 
     let stream = this.bucket.openUploadStream(key, {
       metadata: {
-        expiresAt: expiresAt
+        expiresAt: expiresAt,
+        lastAccessed: new Date()
       }
     });
 
