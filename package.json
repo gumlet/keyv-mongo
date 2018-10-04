@@ -1,6 +1,6 @@
 {
   "name": "keyv-mongo-gridfs",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "MongoDB storage adapter for Keyv using Mongodb GridFS for value storage",
   "main": "src/index.js",
   "scripts": {
@@ -37,7 +37,8 @@
   "private": false,
   "homepage": "https://github.com/gumlet/keyv-mongo-gridfs",
   "dependencies": {
-    "mongodb": "3.1.x"
+    "mongodb": "3.1.x",
+    "quick-lru": "1.1.x"
   },
   "devDependencies": {
     "ava": "^0.25.0",

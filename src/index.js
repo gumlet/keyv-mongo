@@ -1,8 +1,8 @@
 'use strict';
 
-const EventEmitter = require('events');
-const MongoClient = require('mongodb').MongoClient;
-const GridFSBucket = require('mongodb').GridFSBucket;
+const LRU = require("quick-lru"),
+  MongoClient = require('mongodb').MongoClient,
+  GridFSBucket = require('mongodb').GridFSBucket;
 
 class KeyvMongo {
   constructor(opts) {
@@ -20,8 +20,15 @@ class KeyvMongo {
     this.opts = Object.assign({
       url: 'mongodb://127.0.0.1:27017',
       db: "keyv-file-cache",
-      readPreference: "primary"
+      readPreference: "primary",
+      lruSize: 10
     }, opts);
+
+    if (this.opts.lruSize) {
+      this.lru = new LRU({
+        maxSize: this.opts.lruSize
+      });
+    }
 
     this._connected = this.connect();
   }
@@ -46,9 +53,14 @@ class KeyvMongo {
   }
 
   async get(key) {
+    let self = this;
+    if (this.lru && this.lru.has(key)) {
+      return this.lru.get(key);
+    }
+
     await this._connected;
 
-    await this.db.collection("fs.files").updateOne({
+    this.db.collection("fs.files").updateOne({
       filename: key
     }, {
       "$set": {
@@ -59,18 +71,21 @@ class KeyvMongo {
 
     let stream = this.bucket.openDownloadStreamByName(key);
     return new Promise((resolve, reject) => {
-      let resp = '';
-
+      let resp = [];
       stream.on("error", (err) => {
         resolve();
       });
 
       stream.on('end', () => {
+        resp = Buffer.concat(resp).toString("utf-8");
+        if (self.lru) {
+          self.lru.set(key, resp);
+        }
         resolve(resp);
       });
 
       stream.on("data", (chunk) => {
-        resp += chunk;
+        resp.push(chunk);
       });
 
     });
