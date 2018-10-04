@@ -48,7 +48,7 @@ class KeyvMongo {
   async get(key) {
     await this._connected;
 
-    this.db.collection("fs.files").updateOne({
+    await this.db.collection("fs.files").updateOne({
       filename: key
     }, {
       "$set": {
@@ -60,17 +60,19 @@ class KeyvMongo {
     let stream = this.bucket.openDownloadStreamByName(key);
     return new Promise((resolve, reject) => {
       let resp = '';
-      stream.on("data", (chunk) => {
-        resp += chunk;
+
+      stream.on("error", (err) => {
+        resolve();
       });
 
       stream.on('end', () => {
         resolve(resp);
       });
 
-      stream.on("error", (err) => {
-        resolve();
+      stream.on("data", (chunk) => {
+        resp += chunk;
       });
+
     });
 
   }
@@ -89,10 +91,10 @@ class KeyvMongo {
     });
 
     return new Promise((resolve, reject) => {
-      stream.end(value);
       stream.on("finish", () => {
         resolve(stream);
       });
+      stream.end(value);
     });
 
   }

@@ -1,6 +1,6 @@
 {
   "name": "keyv-mongo-gridfs",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "MongoDB storage adapter for Keyv using Mongodb GridFS for value storage",
   "main": "src/index.js",
   "scripts": {
