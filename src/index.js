@@ -43,7 +43,9 @@ class KeyvMongo {
         readPreference: this.opts.readPreference
       });
       this.db.collection("fs.files").createIndex({
-        filename: 1,
+        filename: "hashed"
+      });
+      this.db.collection("fs.files").createIndex({
         uploadDate: -1
       });
       this.db.collection("fs.files").createIndex({
