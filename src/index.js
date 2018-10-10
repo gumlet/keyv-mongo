@@ -43,6 +43,10 @@ class KeyvMongo {
         readPreference: this.opts.readPreference
       });
       this.db.collection("fs.files").createIndex({
+        filename: 1,
+        uploadDate: -1
+      });
+      this.db.collection("fs.files").createIndex({
         "metadata.expiresAt": 1
       });
       this.db.collection("fs.files").createIndex({
