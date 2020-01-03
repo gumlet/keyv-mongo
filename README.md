@@ -20,19 +20,19 @@ npm install --save keyv keyv-mongo-gridfs
 
 ## Usage
 
-```js
-const Keyv = require('keyv');
+```js 
 
-const keyv = new Keyv('mongodb://user:pass@localhost:27017');
-keyv.on('error', handleConnectionError);
-```
+// How to use this adapter
+import Keyv from 'keyv'
+import MongoAdapter from 'keyv-mongo-gridfs'
 
-You can specify the database name, by default `'keyv-file-cache'` is used.
+const store = new MongoAdapter({
+  url: process.env.MONGO_CONNECTION_STRING,
+  db: 'some-db',
+  readPreference: "primary"
+});
+const keyv = new Keyv(connectionString, { store })
 
-e.g:
-
-```js
-const keyv = new Keyv('mongodb://user:pass@localhost:27017', { db: 'example-keyv-cache', readPreference: "primary" });
 ```
 
 ## License
